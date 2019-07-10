@@ -78,7 +78,7 @@
 
     # 2. Initialize
     $ToolPath = "C:\ACTTools\"
-    $GitHubURL = "https://raw.githubusercontent.com/tracsman/NetworkMonitoring/LinkPerf/AzureCT/PowerShell/AzureCT/Public/"
+    $GitHubURL = "https://raw.githubusercontent.com/ACTMod/ACTModified/PowerShell/AzureCT/Public/"
     $PSPingURL = "https://live.sysinternals.com/psping.exe"
     $iPerf3URL = "https://iperf.fr/download/windows/iperf-3.1.3-win64.zip"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
