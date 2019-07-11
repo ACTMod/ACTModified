@@ -53,7 +53,7 @@
 
 
     Param([switch]$Force=$false)
-
+    
     # 1. Warning check
     If (-not $Force) {
         Write-Host
@@ -78,7 +78,7 @@
 
     # 2. Initialize
     $ToolPath = "C:\ACTTools\"
-    $GitHubURL = "https://raw.githubusercontent.com/ACTMod/ACTModified/PowerShell/AzureCT/Public/"
+    $GitHubURL = "https://raw.githubusercontent.com/ACTMod/ACTModified/master/AzureCT/PowerShell/Public/"
     $PSPingURL = "https://live.sysinternals.com/psping.exe"
     $iPerf3URL = "https://iperf.fr/download/windows/iperf-3.1.3-win64.zip"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -156,6 +156,7 @@
     # 6. Check other files
     $FileName = @()
     If (-Not (Test-Path ($ToolPath + "Set-iPerfFirewallRules.ps1"))){$FileName += 'Set-iPerfFirewallRules.ps1'}
+    If (-Not (Test-Path ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1"))){$FileName += 'Set-iPerfFirewallRulesAdv.ps1'}
     If (-Not (Test-Path ($ToolPath + "README.md"))){$FileName += 'README.md'}
 
     # 7. Pull from GitHub if needed
@@ -168,7 +169,7 @@
             }
         Catch {
             Write-Host
-            Write-Warning "Something bad happened pulling files from GitHub. Most likely either files are missing at the source or this host doesn't have internet access."
+            Write-Warning "Something bad happened pulling files from GitHub. Most likely either files are missing at the source or this host doesn't have internet access.-$File"
             Write-Host
             Write-Host "You can manually add the four files and rerun this Install script."
             Write-Host "To manually install the files:"
@@ -184,5 +185,6 @@
     $cmd = $ToolPath + "psping.exe -accepteula | Out-Null"
     Invoke-Expression -Command $cmd
 
-
 } # End Function
+
+
