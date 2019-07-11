@@ -153,7 +153,7 @@
     
         {Write-Host "1st One"
         $cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -iPerfFWPort " + $iPerfPort
-        Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ("-NoExit ", $cmd)}
+        Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)}
     Else {Write-Host "2nd one"
     Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 iPerfFWPort " + $iPerfPort)}
 
