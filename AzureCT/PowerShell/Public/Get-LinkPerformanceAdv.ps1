@@ -150,12 +150,8 @@
     
     # 4. Open Firewall rules
     If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
-    
-        {Write-Host "1st One"
-        $cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -iPerfFWPort " + $iPerfPort
-        Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)}
-    Else {Write-Host "2nd one"
-    Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 iPerfFWPort " + $iPerfPort)}
+        {Start-Process powershell -Verb runAs -ArgumentList ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 iPerfFWPort " + $iPerfPort)}
+    Else {Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 iPerfFWPort " + $iPerfPort)}
 
     # 5. Validate iPerf3 connectivity (two ping)Error Stop
     $FileName = $ToolPath + "\TestPerf.log"
