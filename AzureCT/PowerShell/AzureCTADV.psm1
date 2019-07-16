@@ -26,4 +26,4 @@ Export-ModuleMember -Function Remove-AzureCT
 Export-ModuleMember -Function Install-LinkPerformance
 Export-ModuleMember -Function Get-LinkPerformance
 Export-ModuleMember -Function Get-LinkPerformanceAdv
-Export-ModuleMember -Function Get-AzureCT
+Export-ModuleMember -Function Start-iPerfServer
