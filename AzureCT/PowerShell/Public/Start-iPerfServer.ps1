@@ -12,7 +12,7 @@ function Start-iPerfServer{
 
     .DESCRIPTION
         To perform iPerf tests, an iPerf server must be running for the client to connect to. The 
-        Start-iPerfServer command will start an iPerf server and create the firewall rules required.
+        Start-iPerfServer command will start an iPerf3 server and create the firewall rules required.
         The port used to start the iPerf server should match the port used on the client, 5201 is the defaault.
 
         The Install-LinkPerformance command should be executed first to ensure the iPerf exxecutable
