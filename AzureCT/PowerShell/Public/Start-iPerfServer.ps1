@@ -33,7 +33,7 @@ function Start-iPerfServer{
         Start-iPerfServer
 
         This command will prompt the user to ensure they want to start an iPerf server with the default port (5201). If 
-        conditions are accepted, the command continues, if not accepted, the command ends with no changes make to the host.
+        conditions are accepted, the command continues, if not accepted, the command ends with no changes made to the host.
 
     .EXAMPLE
         Start-iPerfServer -Force
@@ -44,7 +44,7 @@ function Start-iPerfServer{
         Start-iPerfServer -iPerfPort 443
 
         This command will prompt the user to ensure they want to start an iPerf server using port 443. If conditions are accepted, 
-        the command continues, if not accepted, the command ends with no changes make to the host.
+        the command continues, if not accepted, the command ends with no changes made to the host.
 
     .EXAMPLE
         Start-iPerfServer -Force -iPerfPort 443
@@ -98,7 +98,7 @@ function Start-iPerfServer{
 
     # 4. Open Firewall Rules
 
-        # 4.1 Check for the tools path. Exit if it's not there since iPerf files would be missing too.
+        # 4.1 Check for the tools path. Exit if it's not there iPerf files would be missing too.
             
         If (-Not (Test-Path $ToolPath)){
             Write-Host "$ToolPath is missing."
@@ -113,11 +113,9 @@ function Start-iPerfServer{
 
     # 5. Run iPerf as a server
     If ( (Test-Path $ToolPath"iperf3.exe") -and (Test-Path $ToolPath"cygwin1.dll")){
-        $ExePath = $ToolPath+"iperf3.exe"
+        $ExePath = $ToolPath + "iperf3.exe"
         $Args = "-s -p" + $iPerfPort
         Start-Process $ExePath -ArgumentList ($Args)
         } # End If
-
-
 
 } # End Function
