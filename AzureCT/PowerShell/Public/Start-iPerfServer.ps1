@@ -12,7 +12,7 @@ function Start-iPerfServer{
 
     .DESCRIPTION
         To perform iPerf tests, an iPerf server must be running for the client to connect to. The 
-        Start-iPerfServer command will start an iPerf3 server and create the firewall rules required.
+        Start-iPerfServer command will start an iPerf server and create the firewall rules required.
         The port used to start the iPerf server should match the port used on the client, 5201 is the defaault.
 
         The Install-LinkPerformance command should be executed first to ensure the iPerf exxecutable
@@ -33,7 +33,7 @@ function Start-iPerfServer{
         Start-iPerfServer
 
         This command will prompt the user to ensure they want to start an iPerf server with the default port (5201). If 
-        conditions are accepted, the command continues, if not accepted, the command ends with no changes made to the host.
+        conditions are accepted, the command continues, if not accepted, the command ends with no changes make to the host.
 
     .EXAMPLE
         Start-iPerfServer -Force
@@ -44,7 +44,7 @@ function Start-iPerfServer{
         Start-iPerfServer -iPerfPort 443
 
         This command will prompt the user to ensure they want to start an iPerf server using port 443. If conditions are accepted, 
-        the command continues, if not accepted, the command ends with no changes made to the host.
+        the command continues, if not accepted, the command ends with no changes make to the host.
 
     .EXAMPLE
         Start-iPerfServer -Force -iPerfPort 443
@@ -56,9 +56,27 @@ function Start-iPerfServer{
 
     #>
 
-    Param([switch]$Force=$false,
-          [int]$iPerfPort=5201)
+     [cmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
+    Param(
+          [switch]$Force=$false,
+          [int]$iPerfPort=5201
+          )
+
+    Begin {
+        if (-not $PSBoundParameters.ContainsKey('Verbose')) {
+            $VerbosePreference = $PSCmdlet.SessionState.PSVariable.GetValue('VerbosePreference')
+        }
+        if (-not $PSBoundParameters.ContainsKey('Confirm')) {
+            $ConfirmPreference = $PSCmdlet.SessionState.PSVariable.GetValue('ConfirmPreference')
+        }
+        if (-not $PSBoundParameters.ContainsKey('WhatIf')) {
+            $WhatIfPreference = $PSCmdlet.SessionState.PSVariable.GetValue('WhatIfPreference')
+        }
+        Write-Verbose ('[{0}] Confirm={1} ConfirmPreference={2} WhatIf={3} WhatIfPreference={4}' -f $MyInvocation.MyCommand, $Confirm, $ConfirmPreference, $WhatIf, $WhatIfPreference)
+    }
     
+    Process{
+
     # 1. Warning check
     If (-not $Force) {
         Write-Host
@@ -95,14 +113,20 @@ function Start-iPerfServer{
         Write-Host "  3. With those files in place, rerun this command."
         return
         } # End If 
-
+    if ($PSCmdlet.ShouldProcess("ShouldProcess?")) {
     # 4. Open Firewall Rules
 
-        # 4.1 Check for the tools path. Exit if it's not there iPerf files would be missing too.
+        # 4.1 Check for the tools path. Exit if it's not there since iPerf files would be missing too.
             
         If (-Not (Test-Path $ToolPath)){
             Write-Host "$ToolPath is missing."
             return}
+
+        # 4.2 Check for the FW.log file, create it if it's not there.
+        If (-Not (Test-Path $ToolPath"FW.log")){
+            $Content = "Firewall Rules Created: `r`n`r`n"
+            New-Item -Path $File -Force -ItemType "file" -Value $Content | Out-Null
+            } # End If
 
         # 4.2 Call Set-iPerfFirewallRulesAdv
         If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
@@ -110,12 +134,16 @@ function Start-iPerfServer{
             Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)}
             Else {Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 iPerfFWPort " + $iPerfPort + "| Out-Null")
             } # End If
-
+    } # End If
     # 5. Run iPerf as a server
     If ( (Test-Path $ToolPath"iperf3.exe") -and (Test-Path $ToolPath"cygwin1.dll")){
-        $ExePath = $ToolPath + "iperf3.exe"
+        $ExePath = $ToolPath+"iperf3.exe"
         $Args = "-s -p" + $iPerfPort
         Start-Process $ExePath -ArgumentList ($Args)
         } # End If
+    }
+
+    End{}
+
 
 } # End Function
