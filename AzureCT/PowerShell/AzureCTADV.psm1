@@ -27,3 +27,4 @@ Export-ModuleMember -Function Install-LinkPerformance
 Export-ModuleMember -Function Get-LinkPerformance
 Export-ModuleMember -Function Get-LinkPerformanceAdv
 Export-ModuleMember -Function Start-iPerfServer
+Export-ModuleMember -Function Stop-iPerfServer
