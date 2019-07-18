@@ -130,9 +130,9 @@ function Start-iPerfServer{
 
         # 4.2 Call Set-iPerfFirewallRulesAdv
         If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
-            {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -iPerfFWPort " + $iPerfPort
+            {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Add -iPerfFWPort $iPerfPort"
             Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)}
-            Else {Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 iPerfFWPort " + $iPerfPort + "| Out-Null")
+            Else {Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 Add iPerfFWPort $iPerfPort | Out-Null")
             } # End If
     } # End If
     # 5. Run iPerf as a server
