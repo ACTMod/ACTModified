@@ -11,7 +11,7 @@
 
 # 1. Evaluate and Set input parameters for main code block
 [cmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]  
-Param($iPerfFWPort=5201,
+Param([int]$iPerfFWPort=5201,
      [string[]]$FWRuleName="",
      [switch]$Add=$false,
      [switch]$Delete=$false
