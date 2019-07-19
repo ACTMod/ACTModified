@@ -15,6 +15,7 @@
     #    8.3 Get Percentile values
     #    8.4 Add results to object array
     # 9. Output results
+    # 10. Cleanup the Firewall rules
 
     <#
     .SYNOPSIS
@@ -114,7 +115,7 @@
     #>
     
     # 1. Evaluate and Set input parameters
-    [cmdletBinding()]
+    [cmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
     Param(
        [Parameter(ValueFromPipeline=$true,
                   Mandatory=$true,
@@ -128,242 +129,254 @@
        [int]$PsPingPort=3389,
        [switch]$DetailedOutput=$false
     )
+    begin{
+        # 2. Initialize
+        $ToolPath = "C:\ACTTools\"
+        $WebSource = "https://github.com/Azure/NetworkMonitoring"
+        $FileArray = "P00", "P01", "P06", "P16", "P17", "P32"
+        $PingDuration = $TestSeconds
+        $LoadDuration = $TestSeconds + 10
+        If ($RemoteHostOS -eq "Windows") {$PingPort="3389"} Else {$PingPort="22"}
+            If (-NOT $PsPingPort -eq 3389) {} elseif (-NOT $PingPort -eq 22) {$PingPort=$PsPingPort}
+        [String]$HostPort = [string]$RemoteHost + ":" + [String]$PingPort
+    } # End Begin
 
-    # 2. Initialize
-    $ToolPath = "C:\ACTTools\"
-    $WebSource = "https://github.com/Azure/NetworkMonitoring"
-    $FileArray = "P00", "P01", "P06", "P16", "P17", "P32"
-    $PingDuration = $TestSeconds
-    $LoadDuration = $TestSeconds + 10
-    If ($RemoteHostOS -eq "Windows") {$PingPort="3389"} Else {$PingPort="22"}
-        If (-NOT $PsPingPort -eq 3389) {} elseif (-NOT $PingPort -eq 22) {$PingPort=$PsPingPort}
-    [String]$HostPort = [string]$RemoteHost + ":" + [String]$PingPort
-
-
-    # 3. Clear old run files
-    Remove-Job -Name ACT.LinkPerf -Force -ErrorAction SilentlyContinue
-    If (Test-Path $ToolPath"TestPing.log"){Remove-Item $ToolPath"TestPing.log"}
-    If (Test-Path $ToolPath"TestPerf.log"){Remove-Item $ToolPath"TestPerf.log"}
-    If (Test-Path $ToolPath"P*ping.log"){Remove-Item $ToolPath"P*ping.log"}
-    If (Test-Path $ToolPath"P*perf.log"){Remove-Item $ToolPath"P*perf.log"}
-    If (Test-Path $ToolPath"FW.log"){Remove-Item $ToolPath"FW.log"}
+    process{
+        # 3. Clear old run files
+        Remove-Job -Name ACT.LinkPerf -Force -ErrorAction SilentlyContinue
+        If (Test-Path $ToolPath"TestPing.log"){Remove-Item $ToolPath"TestPing.log"}
+        If (Test-Path $ToolPath"TestPerf.log"){Remove-Item $ToolPath"TestPerf.log"}
+        If (Test-Path $ToolPath"P*ping.log"){Remove-Item $ToolPath"P*ping.log"}
+        If (Test-Path $ToolPath"P*perf.log"){Remove-Item $ToolPath"P*perf.log"}
+        If (Test-Path $ToolPath"FW.log"){Remove-Item $ToolPath"FW.log"}
     
-    # 4. Open Firewall rules
-    If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
-            {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Add -iPerfFWPort $iPerfPort"
-            Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)}
-            Else {Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 Add iPerfFWPort $iPerfPort | Out-Null")
-            } # End If
+        # 4. Open Firewall rules
+        If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+                {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Add -iPerfFWPort $iPerfPort"
+                Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)}
+                Else {
+                $cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Add -iPerfFWPort $iPerfPort | Out-Null"
+                Invoke-Expression -Command ($cmd)
+                } # End If
 
-    # 5. Validate iPerf3 connectivity (two ping)Error Stop
-    $FileName = $ToolPath + "\TestPerf.log"
-    $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\iperf3.exe -c $args[0] -p $args[1] -t 2 -i 0 -P 1 --logfile $args[2]} -Name 'ACT.LinkPerf' -ArgumentList "$RemoteHost", "$iPerfPort", "$FileName"
-    Wait-Job -Name "ACT.LinkPerf" | Out-Null
-    # Line Loop
-    $TPut = "Error"
-    Try {
-        $Lines = Get-Content $FileName -ErrorAction Stop
-        ForEach ($Line in $Lines) {
-            If (($Line -like "*receiver*")) {$TPut = $Line.Substring(38,17).Trim()} # End If
-        } # End For
-    } # End Try
-    Catch {}
-    If ($TPut -eq "Error") {
-        Write-Host
-        Write-Warning "Unable to start iPerf session.
-
-        Things to check:
-         - Ensure iPerf is running in server mode (iperf3 -s) on the remote host at $RemoteHost
-         - Ensure the server is listening on the correct port, when specifying the iPerfPort switch use (iperf3 -s -p <port>), defaults to 5201
-         - Ensure remote iPerf server is listening on the default port 5201 if not using the iPerfPort switch
-         - Check host and network firewalls to ensure the default or custom port is open on both hosts and any network devices between them
-         - Ensure iPerf files are installed in C:\ACTTools, if not rerun Install-LinkPerformance
-         - Ensure remote iPerf version is compatible with local version
-
-        See $WebSource for more information."
-        Return } # End If
-   
-    # 6. Validate PSPing connectivity (two ping)Error Stop
-    $FileName = $ToolPath+"\TestPing.log"
-    $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\psping.exe -n 2 -4 $args[0] -nobanner > $args[1]} -Name 'ACT.LinkPerf' -ArgumentList "$HostPort", "$FileName"
-    Wait-Job -Name "ACT.LinkPerf" | Out-Null
-    # Line Loop
-    $Loss = "Error"
-    Try {
-        $Lines = Get-Content $FileName -ErrorAction Stop
-        ForEach ($Line in $Lines) {
-            If ($Line -like "*Sent*") {
-                $Loss = $Line.Substring($Line.IndexOf("(",0)+1,$Line.IndexOf(")",0)-$Line.IndexOf("(",0)-1)
-            } # End If
-        } # End For
-    } # End Try
-    Catch {}
-    If ($Loss -eq "100% loss" -or $Loss -eq "Error") {
-        Write-Host
-        Write-Warning "Unable to TCP ping remote machine.
-
-        Things to check:
-         - Ensure $HostPort is listening and reachable from this machine
-         - Ensure remote OS attribute setting is correct, it's currently set to ""$RemoteHostOS""
-         - Check host and network firewalls to ensure this port is open
-         - Ensure PSPing.exe is installed in C:\ACTTools, if not rerun Install-LinkPerformance
-
-        See $WebSource for more information."
-        Return
-        } # End If
-
-
-    # 7. Main Test Loop
-    ForEach ($FilePrefix in $FileArray) {
-        switch($FilePrefix) {
-            "P00" {$Threads = 00; $TestName = "Stage 1 of 6: No Load Ping Test..."}
-            "P01" {$Threads = 01; $TestName = "Stage 2 of 6: Single Thread Test..."}
-            "P06" {$Threads = 06; $TestName = "Stage 3 of 6: 6 Thread Test..."}
-            "P16" {$Threads = 16; $TestName = "Stage 4 of 6: 16 Thread Test..."}
-            "P17" {$Threads = 16; $TestName = "Stage 5 of 6: 16 Thread Test with 1Mb window..."}
-            "P32" {$Threads = 32; $TestName = "Stage 6 of 6: 32 Thread Test..."}
-            default {Write-Error "Invalid FilePrefix, execution stopping!"; Return}
-        } # End Switch
-
-        # Decalare Test Starting
-        Write-Host (Get-Date)' - ' -NoNewline
-        Write-Host $TestName -ForegroundColor Cyan
-
-        # 7.1 Start iPerf job if required
-        $FileName = $ToolPath + "\" + $FilePrefix + "perf.log"
-        Switch($FilePrefix) {
-            "P00" {}
-            "P17" {
-                $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\iperf3.exe -c $args[0] -p $args[1] -t $args[2] -i 0 -P $args[3]  -w1M --logfile $args[4]} -Name 'ACT.LinkPerf' -ArgumentList "$RemoteHost", "$iPerfPort", "$LoadDuration", "$Threads", "$FileName"
-                Sleep -Seconds 5}
-            default {
-                $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\iperf3.exe -c $args[0] -p $args[1] -t $args[2] -i 0 -P $args[3] --logfile $args[4]} -Name 'ACT.LinkPerf' -ArgumentList "$RemoteHost", "$iPerfPort", "$LoadDuration", "$Threads", "$FileName"
-                Sleep -Seconds 5}
-        } # End Switch
-    
-        # 7.2 Start PSPing job
-        $FileName = $ToolPath + "\" + $FilePrefix + "ping.log"
-        [string]$StringDuration = $PingDuration.ToString() + "s"
-        $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\psping.exe -n $args[0] -4 $args[1] -nobanner > $args[2]} -Name 'ACT.LinkPerf' -ArgumentList "$StringDuration", "$HostPort", "$FileName"
-
-        # 7.3 Wait for jobs to finish
-        If ($FilePrefix -eq "P00") {$time = $PingDuration + 2}
-        Else {$time = $LoadDuration + 1} # End If
-        foreach($i in (1..$time)) {
-            $percentage = $i / $time
-            $remaining = New-TimeSpan -Seconds ($time - $i)
-            $message = "{0:p0} complete, remaining time {1}" -f $percentage, $remaining
-            Write-Progress -Activity $message -PercentComplete ($percentage * 100) -CurrentOperation $TestName
-            Start-Sleep 1
-            } # End Foreach
-        While ((Get-Job -Name 'ACT.LinkPerf' -ErrorAction SilentlyContinue | Where State -eq 'Running').Count -gt 0) {
-            Write-Verbose "Waiting for job threads to finish..."
-            Sleep 2
-            } # End While
-        } # End For
- 
-    Write-Host "Testing Complete!" -ForegroundColor Cyan
-
-    # 8. Parse each job file for data
-    $TestResults=@()
-    # File Loop
-    ForEach ($FilePrefix in $FileArray) {
-        switch($FilePrefix) {
-            "P00" {$TestName = "No Load"}
-            "P01" {$TestName = "1 Session"}
-            "P06" {$TestName = "6 Sessions"}
-            "P16" {$TestName = "16 Sessions"}
-            "P17" {$TestName = "16 Sessions with 1Mb window"}
-            "P32" {$TestName = "32 Sessions"}
-            default {}
-        } # End Switch
-
-        # 8.1 iPerf3 log file line loop
-        $FileName = $ToolPath + "\" + $FilePrefix + "perf.log"
+        # 5. Validate iPerf3 connectivity (two ping)Error Stop
+        $FileName = $ToolPath + "\TestPerf.log"
+        $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\iperf3.exe -c $args[0] -p $args[1] -t 2 -i 0 -P 1 --logfile $args[2]} -Name 'ACT.LinkPerf' -ArgumentList "$RemoteHost", "$iPerfPort", "$FileName"
+        Wait-Job -Name "ACT.LinkPerf" | Out-Null
+        # Line Loop
         $TPut = "Error"
-        If ($FilePrefix -eq "P00") {
-             $TPut = "N/A"}
-        Else {
-            Try {
-                $Lines = Get-Content $FileName -ErrorAction Stop
-                ForEach ($Line in $Lines) {
-                    If ($FilePrefix -eq "P01") {If (($Line -like "*receiver*")) {$TPut = $Line.Substring(38,17).Trim()} #End If
-                    }
-                    Else {
-                        If (($Line -like "*SUM*" -and $Line -like "*receiver*")) {$TPut = $Line.Substring(38,17).Trim()} #End If
-                    } # End Else
-                } # End For
-            } # End Try
-            Catch {Write-Warning "Error reading or processing file: $FileName"}
-        } # End If
-
-
-        # 8.2 PSPing log file line loop
-        $FileName = $ToolPath + "\" + $FilePrefix + "ping.log"
-        $PingArray = New-Object System.Collections.Generic.List[System.Object]
-        $PingLoss = "Error"
-        $PingSent = "Error"
-        $PingP50 = "Error"
-        $PingP90 = "Error"
-        $PingP95 = "Error"
-        $PingMin = "Error"
-        $PingMax = "Error"
-        $PingAvg = "Error"
         Try {
             $Lines = Get-Content $FileName -ErrorAction Stop
             ForEach ($Line in $Lines) {
-                If ($Line.Contains("Connecting")) {
-                    $Step1 = (($Line -split ':')[4])
-                    $Step2 = $Step1.Trim()
-                    [Decimal]$Step3 = $Step2.TrimEnd("ms")
-                    $PingArray.Add($Step3)
-                } # EndIf
+                If (($Line -like "*receiver*")) {$TPut = $Line.Substring(38,17).Trim()} # End If
+            } # End For
+        } # End Try
+        Catch {}
+        If ($TPut -eq "Error") {
+            Write-Host
+            Write-Warning "Unable to start iPerf session.
+
+            Things to check:
+             - Ensure iPerf is running in server mode (iperf3 -s) on the remote host at $RemoteHost
+             - Ensure the server is listening on the correct port, when specifying the iPerfPort switch use (iperf3 -s -p <port>), defaults to 5201
+             - Ensure remote iPerf server is listening on the default port 5201 if not using the iPerfPort switch
+             - Check host and network firewalls to ensure the default or custom port is open on both hosts and any network devices between them
+             - Ensure iPerf files are installed in C:\ACTTools, if not rerun Install-LinkPerformance
+             - Ensure remote iPerf version is compatible with local version
+
+            See $WebSource for more information."
+            Return } # End If
+   
+        # 6. Validate PSPing connectivity (two ping)Error Stop
+        $FileName = $ToolPath+"\TestPing.log"
+        $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\psping.exe -n 2 -4 $args[0] -nobanner > $args[1]} -Name 'ACT.LinkPerf' -ArgumentList "$HostPort", "$FileName"
+        Wait-Job -Name "ACT.LinkPerf" | Out-Null
+        # Line Loop
+        $Loss = "Error"
+        Try {
+            $Lines = Get-Content $FileName -ErrorAction Stop
+            ForEach ($Line in $Lines) {
                 If ($Line -like "*Sent*") {
-                    $PingSent = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Sent",0))+2, $Line.IndexOf(",", $Line.IndexOf("Sent",0))-$Line.IndexOf("=", $Line.IndexOf("Sent",0))-2)
-                    $PingLoss = $Line.Substring($Line.IndexOf("(",0)+1,$Line.IndexOf(")",0)-$Line.IndexOf("(",0)-1)
-                } # End If
-                If ($Line -like "*Minimum*") {
-                    $PingMin = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Minimum",0))+2, $Line.IndexOf(",", $Line.IndexOf("Minimum",0))-$Line.IndexOf("=", $Line.IndexOf("Minimum",0))-2)
-                    $PingMax = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Maximum",0))+2, $Line.IndexOf(",", $Line.IndexOf("Maximum",0))-$Line.IndexOf("=", $Line.IndexOf("Maximum",0))-2)
-                    $PingAvg = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Average",0))+2)
+                    $Loss = $Line.Substring($Line.IndexOf("(",0)+1,$Line.IndexOf(")",0)-$Line.IndexOf("(",0)-1)
                 } # End If
             } # End For
         } # End Try
-        Catch {Write-Warning "Error reading or processing file: $FileName"}
+        Catch {}
+        If ($Loss -eq "100% loss" -or $Loss -eq "Error") {
+            Write-Host
+            Write-Warning "Unable to TCP ping remote machine.
 
-        # 8.3 Get Percentile values
-        # Remove the warm up ping and sort the arrary
-        $PingArray.RemoveAt(0)
-        $SortedArrary = $PingArray | Sort-Object
-        # http://www.dummies.com/education/math/statistics/how-to-calculate-percentiles-in-statistics/
-        # Pick 50th Percentile
-        If ($SortedArrary.count%.5) {$PingP50 = $SortedArrary[[math]::Ceiling($SortedArrary.count*.5)-1]}
-        Else {$PingP50 = ($SortedArrary[$SortedArrary.Count*.5] + $SortedArrary[$SortedArrary.count*.5-1])/2}
-        # Pick 90th Percentile
-        If ($SortedArrary.count%.9) {$PingP90 = $SortedArrary[[math]::Ceiling($SortedArrary.count*.9)-1]}
-        Else {$PingP90 = ($SortedArrary[$SortedArrary.Count*.9] + $SortedArrary[$SortedArrary.count*.9-1])/2}
-        # Pick 95th Percentile
-        If ($SortedArrary.count%.95) {$PingP95 = $SortedArrary[[math]::Ceiling($SortedArrary.count*.95)-1]}
-        Else {$PingP95 = ($SortedArrary[$SortedArrary.Count*.95] + $SortedArrary[$SortedArrary.count*.95-1])/2}
+            Things to check:
+             - Ensure $HostPort is listening and reachable from this machine
+             - Ensure remote OS attribute setting is correct, it's currently set to ""$RemoteHostOS""
+             - Check host and network firewalls to ensure this port is open
+             - Ensure PSPing.exe is installed in C:\ACTTools, if not rerun Install-LinkPerformance
 
-        # 8.4 Add results to object array
-        $Test = New-Object -TypeName PSObject
-        $Test | Add-Member -Name 'Name' -MemberType NoteProperty -Value $TestName
-        $Test | Add-Member -Name 'Bandwidth' -MemberType NoteProperty -Value $TPut
-        $Test | Add-Member -Name 'Count' -MemberType NoteProperty -Value $PingSent
-        $Test | Add-Member -Name 'Loss' -MemberType NoteProperty -Value $PingLoss
-        $Test | Add-Member -Name 'P50' -MemberType NoteProperty -Value $PingP50'ms'
-        $Test | Add-Member -Name 'P90' -MemberType NoteProperty -Value $PingP90'ms'
-        $Test | Add-Member -Name 'P95' -MemberType NoteProperty -Value $PingP95'ms'
-        $Test | Add-Member -Name 'Avg' -MemberType NoteProperty -Value $PingAvg
-        $Test | Add-Member -Name 'Min' -MemberType NoteProperty -Value $PingMin
-        $Test | Add-Member -Name 'Max' -MemberType NoteProperty -Value $PingMax
+            See $WebSource for more information."
+            Return
+            } # End If
+
+
+        # 7. Main Test Loop
+        ForEach ($FilePrefix in $FileArray) {
+            switch($FilePrefix) {
+                "P00" {$Threads = 00; $TestName = "Stage 1 of 6: No Load Ping Test..."}
+                "P01" {$Threads = 01; $TestName = "Stage 2 of 6: Single Thread Test..."}
+                "P06" {$Threads = 06; $TestName = "Stage 3 of 6: 6 Thread Test..."}
+                "P16" {$Threads = 16; $TestName = "Stage 4 of 6: 16 Thread Test..."}
+                "P17" {$Threads = 16; $TestName = "Stage 5 of 6: 16 Thread Test with 1Mb window..."}
+                "P32" {$Threads = 32; $TestName = "Stage 6 of 6: 32 Thread Test..."}
+                default {Write-Error "Invalid FilePrefix, execution stopping!"; Return}
+            } # End Switch
+
+            # Decalare Test Starting
+            Write-Host (Get-Date)' - ' -NoNewline
+            Write-Host $TestName -ForegroundColor Cyan
+
+            # 7.1 Start iPerf job if required
+            $FileName = $ToolPath + "\" + $FilePrefix + "perf.log"
+            Switch($FilePrefix) {
+                "P00" {}
+                "P17" {
+                    $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\iperf3.exe -c $args[0] -p $args[1] -t $args[2] -i 0 -P $args[3]  -w1M --logfile $args[4]} -Name 'ACT.LinkPerf' -ArgumentList "$RemoteHost", "$iPerfPort", "$LoadDuration", "$Threads", "$FileName"
+                    Sleep -Seconds 5}
+                default {
+                    $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\iperf3.exe -c $args[0] -p $args[1] -t $args[2] -i 0 -P $args[3] --logfile $args[4]} -Name 'ACT.LinkPerf' -ArgumentList "$RemoteHost", "$iPerfPort", "$LoadDuration", "$Threads", "$FileName"
+                    Sleep -Seconds 5}
+            } # End Switch
+    
+            # 7.2 Start PSPing job
+            $FileName = $ToolPath + "\" + $FilePrefix + "ping.log"
+            [string]$StringDuration = $PingDuration.ToString() + "s"
+            $iPerfJob = Start-Job -ScriptBlock {C:\ACTTools\psping.exe -n $args[0] -4 $args[1] -nobanner > $args[2]} -Name 'ACT.LinkPerf' -ArgumentList "$StringDuration", "$HostPort", "$FileName"
+
+            # 7.3 Wait for jobs to finish
+            If ($FilePrefix -eq "P00") {$time = $PingDuration + 2}
+            Else {$time = $LoadDuration + 1} # End If
+            foreach($i in (1..$time)) {
+                $percentage = $i / $time
+                $remaining = New-TimeSpan -Seconds ($time - $i)
+                $message = "{0:p0} complete, remaining time {1}" -f $percentage, $remaining
+                Write-Progress -Activity $message -PercentComplete ($percentage * 100) -CurrentOperation $TestName
+                Start-Sleep 1
+                } # End Foreach
+            While ((Get-Job -Name 'ACT.LinkPerf' -ErrorAction SilentlyContinue | Where State -eq 'Running').Count -gt 0) {
+                Write-Verbose "Waiting for job threads to finish..."
+                Sleep 2
+                } # End While
+            } # End For
+ 
+        Write-Host "Testing Complete!" -ForegroundColor Cyan
+
+        # 8. Parse each job file for data
+        $TestResults=@()
+        # File Loop
+        ForEach ($FilePrefix in $FileArray) {
+            switch($FilePrefix) {
+                "P00" {$TestName = "No Load"}
+                "P01" {$TestName = "1 Session"}
+                "P06" {$TestName = "6 Sessions"}
+                "P16" {$TestName = "16 Sessions"}
+                "P17" {$TestName = "16 Sessions with 1Mb window"}
+                "P32" {$TestName = "32 Sessions"}
+                default {}
+            } # End Switch
+
+            # 8.1 iPerf3 log file line loop
+            $FileName = $ToolPath + "\" + $FilePrefix + "perf.log"
+            $TPut = "Error"
+            If ($FilePrefix -eq "P00") {
+                 $TPut = "N/A"}
+            Else {
+                Try {
+                    $Lines = Get-Content $FileName -ErrorAction Stop
+                    ForEach ($Line in $Lines) {
+                        If ($FilePrefix -eq "P01") {If (($Line -like "*receiver*")) {$TPut = $Line.Substring(38,17).Trim()} #End If
+                        }
+                        Else {
+                            If (($Line -like "*SUM*" -and $Line -like "*receiver*")) {$TPut = $Line.Substring(38,17).Trim()} #End If
+                        } # End Else
+                    } # End For
+                } # End Try
+                Catch {Write-Warning "Error reading or processing file: $FileName"}
+            } # End If
+
+
+            # 8.2 PSPing log file line loop
+            $FileName = $ToolPath + "\" + $FilePrefix + "ping.log"
+            $PingArray = New-Object System.Collections.Generic.List[System.Object]
+            $PingLoss = "Error"
+            $PingSent = "Error"
+            $PingP50 = "Error"
+            $PingP90 = "Error"
+            $PingP95 = "Error"
+            $PingMin = "Error"
+            $PingMax = "Error"
+            $PingAvg = "Error"
+            Try {
+                $Lines = Get-Content $FileName -ErrorAction Stop
+                ForEach ($Line in $Lines) {
+                    If ($Line.Contains("Connecting")) {
+                        $Step1 = (($Line -split ':')[4])
+                        $Step2 = $Step1.Trim()
+                        [Decimal]$Step3 = $Step2.TrimEnd("ms")
+                        $PingArray.Add($Step3)
+                    } # EndIf
+                    If ($Line -like "*Sent*") {
+                        $PingSent = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Sent",0))+2, $Line.IndexOf(",", $Line.IndexOf("Sent",0))-$Line.IndexOf("=", $Line.IndexOf("Sent",0))-2)
+                        $PingLoss = $Line.Substring($Line.IndexOf("(",0)+1,$Line.IndexOf(")",0)-$Line.IndexOf("(",0)-1)
+                    } # End If
+                    If ($Line -like "*Minimum*") {
+                        $PingMin = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Minimum",0))+2, $Line.IndexOf(",", $Line.IndexOf("Minimum",0))-$Line.IndexOf("=", $Line.IndexOf("Minimum",0))-2)
+                        $PingMax = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Maximum",0))+2, $Line.IndexOf(",", $Line.IndexOf("Maximum",0))-$Line.IndexOf("=", $Line.IndexOf("Maximum",0))-2)
+                        $PingAvg = $Line.Substring($Line.IndexOf("=", $Line.IndexOf("Average",0))+2)
+                    } # End If
+                } # End For
+            } # End Try
+            Catch {Write-Warning "Error reading or processing file: $FileName"}
+
+            # 8.3 Get Percentile values
+            # Remove the warm up ping and sort the arrary
+            $PingArray.RemoveAt(0)
+            $SortedArrary = $PingArray | Sort-Object
+            # http://www.dummies.com/education/math/statistics/how-to-calculate-percentiles-in-statistics/
+            # Pick 50th Percentile
+            If ($SortedArrary.count%.5) {$PingP50 = $SortedArrary[[math]::Ceiling($SortedArrary.count*.5)-1]}
+            Else {$PingP50 = ($SortedArrary[$SortedArrary.Count*.5] + $SortedArrary[$SortedArrary.count*.5-1])/2}
+            # Pick 90th Percentile
+            If ($SortedArrary.count%.9) {$PingP90 = $SortedArrary[[math]::Ceiling($SortedArrary.count*.9)-1]}
+            Else {$PingP90 = ($SortedArrary[$SortedArrary.Count*.9] + $SortedArrary[$SortedArrary.count*.9-1])/2}
+            # Pick 95th Percentile
+            If ($SortedArrary.count%.95) {$PingP95 = $SortedArrary[[math]::Ceiling($SortedArrary.count*.95)-1]}
+            Else {$PingP95 = ($SortedArrary[$SortedArrary.Count*.95] + $SortedArrary[$SortedArrary.count*.95-1])/2}
+
+            # 8.4 Add results to object array
+            $Test = New-Object -TypeName PSObject
+            $Test | Add-Member -Name 'Name' -MemberType NoteProperty -Value $TestName
+            $Test | Add-Member -Name 'Bandwidth' -MemberType NoteProperty -Value $TPut
+            $Test | Add-Member -Name 'Count' -MemberType NoteProperty -Value $PingSent
+            $Test | Add-Member -Name 'Loss' -MemberType NoteProperty -Value $PingLoss
+            $Test | Add-Member -Name 'P50' -MemberType NoteProperty -Value $PingP50'ms'
+            $Test | Add-Member -Name 'P90' -MemberType NoteProperty -Value $PingP90'ms'
+            $Test | Add-Member -Name 'P95' -MemberType NoteProperty -Value $PingP95'ms'
+            $Test | Add-Member -Name 'Avg' -MemberType NoteProperty -Value $PingAvg
+            $Test | Add-Member -Name 'Min' -MemberType NoteProperty -Value $PingMin
+            $Test | Add-Member -Name 'Max' -MemberType NoteProperty -Value $PingMax
         
-        $TestResults += $Test
-    } # End Foreach
+            $TestResults += $Test
+        } # End Foreach
 
-    # 9. Output results
-    If ($DetailedOutput) {Write-Output $TestResults}
-    Else {Write-Output $TestResults | Select Name, Bandwidth, Loss, P50}
-
+        # 9. Output results
+        If ($DetailedOutput) {Write-Output $TestResults}
+        Else {Write-Output $TestResults | Select Name, Bandwidth, Loss, P50}
+    } # End Process
+    end{
+        If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+                    {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Delete -FWRuleName Allow_ICMPv4_in,Allow_iPerf3_in" 
+                     Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)
+                    }
+                    Else {
+                        Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Delete -FWRuleName Allow_ICMPv4_in,Allow_iPerf3_in | Out-Null")
+                    } # End If        
+    } # End End Block
 } # End Function
