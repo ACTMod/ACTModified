@@ -41,7 +41,6 @@ if ($iPerf) {
     If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
             {  
             $cmd = $ToolPath + "Stop-Process.ps1 iPerf3" 
-            Write-Host $cmd
             Start-Process powershell -Verb runAs -ArgumentList ($cmd)
             }
             else{Invoke-Expression -Command ($ToolPath + "Stop-Process.ps1 iPerf3")
