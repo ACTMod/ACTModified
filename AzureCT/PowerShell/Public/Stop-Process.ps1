@@ -1,4 +1,11 @@
-﻿   [cmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
+﻿    # Must be run as admin
+    # Kills the processes passed to paramter $Procs
+    # Additional security checks and prompts added
+
+    # 1. Check security settings
+    # 2. Kill processes
+     
+    [cmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
     Param(
           [string[]]$Procs
           )
@@ -29,29 +36,31 @@
     
     Process{
         
-        # Check for UAC prompt settings
-        $AdminPrompt = Get-RegistryValue $Key $ConsentPromptBehaviorAdmin_Name 
-        $DesktopPrompt = Get-RegistryValue $Key $PromptOnSecureDesktop_Name
+        # 1. Check security settings
+            # 1.1 Check for UAC prompt settings
+            $AdminPrompt = Get-RegistryValue $Key $ConsentPromptBehaviorAdmin_Name 
+            $DesktopPrompt = Get-RegistryValue $Key $PromptOnSecureDesktop_Name
         
-        # If UAC is set to not prompt warn and ask to continue
-        if ($AdminPrompt -eq 0 -and $DesktopPrompt -eq 0){
-        Write-Host
-        Write-Host "                               " -BackgroundColor Black
-        Write-Host "  ***************************  " -ForegroundColor Red -BackgroundColor Black
-        Write-Host "  ***                     ***  " -ForegroundColor Red -BackgroundColor Black
-        Write-Host "  ***" -ForegroundColor Red -BackgroundColor Black -NoNewline
-        Write-Host "    !!!Warning!!!    " -ForegroundColor Yellow -BackgroundColor Black -NoNewline
-        Write-host "***  "  -ForegroundColor Red -BackgroundColor Black
-        Write-Host "  ***                     ***  " -ForegroundColor Red -BackgroundColor Black
-        Write-Host "  ***************************  " -ForegroundColor Red -BackgroundColor Black
-        Write-Host "                               " -BackgroundColor Black
-        Write-Host 
-        Write-Host "  Your security settings are set to not prompt about dangerous activities" -ForegroundColor Cyan
-        Write-Host
-        $foo = Read-Host -Prompt "Are you sure you wish to continue? [y]"
-        If ($foo -ne "y" -and $foo -ne "") {Return}
-        } # End If
-
+            # 1.2 If UAC is set to not prompt warn and ask to continue
+            if ($AdminPrompt -eq 0 -and $DesktopPrompt -eq 0){
+            Write-Host
+            Write-Host "                               " -BackgroundColor Black
+            Write-Host "  ***************************  " -ForegroundColor Red -BackgroundColor Black
+            Write-Host "  ***                     ***  " -ForegroundColor Red -BackgroundColor Black
+            Write-Host "  ***" -ForegroundColor Red -BackgroundColor Black -NoNewline
+            Write-Host "    !!!Warning!!!    " -ForegroundColor Yellow -BackgroundColor Black -NoNewline
+            Write-host "***  "  -ForegroundColor Red -BackgroundColor Black
+            Write-Host "  ***                     ***  " -ForegroundColor Red -BackgroundColor Black
+            Write-Host "  ***************************  " -ForegroundColor Red -BackgroundColor Black
+            Write-Host "                               " -BackgroundColor Black
+            Write-Host 
+            Write-Host "  Your security settings are set to not prompt about dangerous activities" -ForegroundColor Cyan
+            Write-Host
+            $foo = Read-Host -Prompt "Are you sure you wish to continue? [y]"
+            If ($foo -ne "y" -and $foo -ne "") {Return}
+            } # End If
+        
+        # 2. Kill processes
         foreach($Proc in $Procs){
         $Proccess = Get-Process $Proc -ErrorAction SilentlyContinue
         # try gracefully first

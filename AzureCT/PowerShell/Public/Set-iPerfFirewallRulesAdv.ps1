@@ -2,19 +2,17 @@
 # Default iPerf port is set to 5201 unless $iPerfFWPort is set to something else
 # AddFWRule function assumes ICMP and iPerf rules only
 # Pass the Firewall rule Name to the DeleteFWRule function, not the display name
+# Additional security checks and prompts added
 
 # 1. Evaluate and Set input parameters
 # 2. Check security settings
 # 3. Initialize
-# 4. Create log file if it doesn't exist
-# 5. Open Firewall rules
-    #4.1 Turn On ICMPv4
-    #4.2 Turn On iPerf3
+# 5. Perform add or delete actions for Firewall rules
 
 # 1. Evaluate and Set input parameters for main code block
 [cmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]  
 Param($iPerfFWPort=5201,
-      [string[]]$FWRuleName="",
+     [string[]]$FWRuleName="",
      [switch]$Add=$false,
      [switch]$Delete=$false
      )
