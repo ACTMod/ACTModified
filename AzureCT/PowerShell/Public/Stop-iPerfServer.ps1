@@ -43,7 +43,7 @@ if ($iPerf) {
             $cmd = $ToolPath + "Stop-Process.ps1 iPerf3" 
             Start-Process powershell -Verb runAs -ArgumentList ($cmd)
             }
-            else{Invoke-Expression -Command ($ToolPath + "Stop-Process.ps1 iPerf3")
+            else{Invoke-Expression -Command ($ToolPath + "Stop-Process.ps1 iPerf3 | Out-Null")
             } # End If
             
 
