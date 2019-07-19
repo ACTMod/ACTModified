@@ -31,33 +31,38 @@
 
     #>
 
-# 1. Initialize
-$ToolPath = "C:\ACTTools\"
+[cmdletBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
+param()
 
-# 2. Stop the iPerf process if it's running
-$iPerf = Get-Process iperf3 -ErrorAction SilentlyContinue
+    process{
+    # 1. Initialize
+    $ToolPath = "C:\ACTTools\"
 
-if ($iPerf) {
-    If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
-            {  
-            $cmd = $ToolPath + "Stop-Process.ps1 iPerf3" 
-            Start-Process powershell -Verb runAs -ArgumentList ($cmd)
-            }
-            else{Invoke-Expression -Command ($ToolPath + "Stop-Process.ps1 iPerf3 | Out-Null")
-            } # End If
+    # 2. Stop the iPerf process if it's running
+    $iPerf = Get-Process iperf3 -ErrorAction SilentlyContinue
+
+    if ($iPerf) {
+        If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+                {  
+                $cmd = $ToolPath + "Stop-Process.ps1 iPerf3" 
+                Start-Process powershell -Verb runAs -ArgumentList ($cmd)
+                }
+                else{Invoke-Expression -Command ($ToolPath + "Stop-Process.ps1 iPerf3 | Out-Null")
+                } # End If
             
 
-} # End If
-Remove-Variable iPerf
+    } # End If
+    Remove-Variable iPerf
 
-# 3. Delete the iPerf and ICMP firewall rules
-If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
-            {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Delete -FWRuleName Allow_ICMPv4_in,Allow_iPerf3_in" 
-             Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)
-            }
-            Else {
-                Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Delete -FWRuleName Allow_ICMPv4_in,Allow_iPerf3_in | Out-Null")
-            } # End If
-
+    # 3. Delete the iPerf and ICMP firewall rules
+    If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+                {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Delete -FWRuleName Allow_ICMPv4_in,Allow_iPerf3_in" 
+                 Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)
+                }
+                Else {
+                    Invoke-Expression -Command ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Delete -FWRuleName Allow_ICMPv4_in,Allow_iPerf3_in | Out-Null")
+                } # End If
+    } # End Process
 } # End Function
+
 
