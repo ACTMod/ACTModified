@@ -371,6 +371,7 @@
         Else {Write-Output $TestResults | Select Name, Bandwidth, Loss, P50}
     } # End Process
     end{
+        # 10. Cleanup the Firewall rules
         If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
                     {$cmd = $ToolPath + "Set-iPerfFirewallRulesAdv.ps1 -Delete -FWRuleName Allow_ICMPv4_in,Allow_iPerf3_in" 
                      Start-Process powershell -PipelineVariable $iPerfPort -Verb runAs -ArgumentList ($cmd)
