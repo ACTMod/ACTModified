@@ -37,13 +37,13 @@ begin{
         # 1 Turn On ICMPv4
         Try {Get-NetFirewallRule -Name Allow_ICMPv4_in -ErrorAction Stop | Out-Null}
         Catch {New-NetFirewallRule -DisplayName "Allow ICMPv4" -Name Allow_ICMPv4_in -Action Allow -Enabled True -Profile Any -Protocol ICMPv4 | Out-Null}
-        $Content = "$(Get-Date) Created a Rule: -DisplayName Allow_ICMPv4_in -Action Allow -Enabled True -Profile Any -Protocol ICMPv4"
+        $Content = "$(Get-Date) Created a Rule: -DisplayName Allow iPerf3 -Name Allow_ICMPv4_in -Action Allow -Enabled True -Profile Any -Protocol ICMPv4"
         Add-Content -Path $File -Value $Content
 
         # 2 Turn On iPerf3
         Try {Get-NetFirewallRule -Name Allow_iPerf3_in -ErrorAction Stop | Out-Null}
         Catch {New-NetFirewallRule -DisplayName "Allow iPerf3" -Name Allow_iPerf3_in -Action Allow -Enabled True -Profile Any -Protocol TCP -LocalPort $iPerfFWPort | Out-Null}
-        $Content = "$(Get-Date) Created a Rule: -DisplayName  Allow_iPerf3_in -Action Allow -Enabled True -Profile Any -Protocol TCP -LocalPort " + $iPerfFWPort
+        $Content = "$(Get-Date) Created a Rule:  -DisplayName Allow iPerf3 -Name  Allow_iPerf3_in -Action Allow -Enabled True -Profile Any -Protocol TCP -LocalPort " + $iPerfFWPort
         Add-Content -Path $File -Value $Content
     } # End Function
 
