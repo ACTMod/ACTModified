@@ -79,7 +79,7 @@ process{
             $AdminPrompt = Get-RegistryValue $Key $ConsentPromptBehaviorAdmin_Name 
             $DesktopPrompt = Get-RegistryValue $Key $PromptOnSecureDesktop_Name
         
-            # If set to not prompt give ask to continue
+            # If UAC is set to not prompt warn and ask to continue
             if ($AdminPrompt -eq 0 -and $DesktopPrompt -eq 0){
             Write-Host
             Write-Host "                               " -BackgroundColor Black
