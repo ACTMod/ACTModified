@@ -30,7 +30,8 @@
         3. Download PSPing to the directory
         4. Download two files from GitHub (a firewalls rule script, and a readme file)
         5. Accept the EULA for PSPing
-        
+        6. Open the local host firewall for ICMP and Port 5201 traffic
+
     .PARAMETER Force
         This optional parameter will bypass the "Are you sure" prompt and enable a silent or scripted installation.
 
@@ -67,6 +68,7 @@
         Write-Host "                               " -BackgroundColor Black
         Write-Host 
         Write-Host "  This script will install 3rd party products: iPerf3 and PSPing" -ForegroundColor Cyan
+        Write-Host "  As well as open firewall port 5201 and allow ICMPv4" -ForegroundColor Cyan
         Write-Host
         $foo = Read-Host -Prompt "Are you sure you wish to continue? [y]"
         If ($foo -ne "y" -and $foo -ne "") {Return}
@@ -155,6 +157,7 @@
     $FileName = @()
     If (-Not (Test-Path ($ToolPath + "Set-iPerfFirewallRules.ps1"))){$FileName += 'Set-iPerfFirewallRules.ps1'}
     If (-Not (Test-Path ($ToolPath + "Set-iPerfFirewallRulesAdv.ps1"))){$FileName += 'Set-iPerfFirewallRulesAdv.ps1'}
+    If (-Not (Test-Path ($ToolPath + "Stop-Process.ps1"))){$FileName += 'Stop-Process.ps1'}
     If (-Not (Test-Path ($ToolPath + "README.md"))){$FileName += 'README.md'}
 
     # 7. Pull from GitHub if needed
